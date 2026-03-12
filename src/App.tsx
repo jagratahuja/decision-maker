@@ -376,9 +376,9 @@ function App() {
         )}
       </div>
 
-      <footer className="text-center py-8 text-white/50 text-xs border-t border-white/10">
-        <p>Built with ♥ by Jagrat Ahuja</p>
-        <p>© 2026 All rights reserved.</p>
+      <footer className="text-center py-8 text-white/50 text-sm border-t border-white/10">
+        <p className="text-base">Built with ♥ by Jagrat Ahuja</p>
+        <p className="text-base">© 2026 All rights reserved.</p>
       </footer>
     </div>
   );
