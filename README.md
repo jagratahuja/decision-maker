@@ -6,6 +6,9 @@ Instead of choosing randomly between options, the tool evaluates choices using m
 
 This turns everyday decision-making into a structured process.
 
+Live Website:
+https://decision-jagratahuja.vercel.app/
+
 ---
 
 ## ✨ Features
