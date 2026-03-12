@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.2);
+}
+
+.slider-emerald::-webkit-slider-thumb {
+  background: #10b981;
+  border-color: #059669;
+}
+
+.slider-emerald::-moz-range-thumb {
+  background: #10b981;
+  border-color: #059669;
+}
+
+.slider-orange::-webkit-slider-thumb {
+  background: #f97316;
+  border-color: #ea580c;
+}
+
+.slider-orange::-moz-range-thumb {
+  background: #f97316;
+  border-color: #ea580c;
+}
+
+.slider-blue::-webkit-slider-thumb {
+  background: #3b82f6;
+  border-color: #2563eb;
+}
+
+.slider-blue::-moz-range-thumb {
+  background: #3b82f6;
+  border-color: #2563eb;
+}
+
+.slider-amber::-webkit-slider-thumb {
+  background: #f59e0b;
+  border-color: #d97706;
+}
+
+slider-amber::-moz-range-thumb {
+  background: #f59e0b;
+  border-color: #d97706;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+}
+
+input[type="range"]::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+input[type="range"]::-moz-range-progress {
+  background: transparent;
+}
