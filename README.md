@@ -79,7 +79,7 @@ Storage:
 
 Deployment:
 
-* Planned (not live yet)
+* Vercel (https://decision-jagratahuja.vercel.app/)
 
 ---
 
