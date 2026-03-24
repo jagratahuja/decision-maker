@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, TrendingUp, Clock, Target, Smile } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Trash2, TrendingUp, Clock, Scale, Smile, Star, Trophy, Medal, Award } from 'lucide-react';
 
 interface Criteria {
   importance: number;
@@ -26,20 +26,60 @@ interface Result {
   };
 }
 
+const OPTION_NAME_MAX_LENGTH = 24;
+const OPTIONS_STORAGE_KEY = 'decision-maker-options';
+
+const clampScore = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 3;
+  }
+
+  return Math.min(5, Math.max(1, value));
+};
+
 function App() {
-  const [options, setOptions] = useState<Option[]>([
-    {
-      id: '1',
-      name: '',
-      criteria: { importance: 3, urgency: 3, longTerm: 3, enjoyment: 3 },
-    },
-    {
-      id: '2',
-      name: '',
-      criteria: { importance: 3, urgency: 3, longTerm: 3, enjoyment: 3 },
-    },
-  ]);
+  const [options, setOptions] = useState<Option[]>(() => {
+    if (typeof window === 'undefined') {
+      return [];
+    }
+
+    try {
+      const raw = window.localStorage.getItem(OPTIONS_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as Option[];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .filter((item) => item && typeof item === 'object')
+        .map((item, index) => ({
+          id: typeof item.id === 'string' && item.id.length > 0 ? item.id : `${Date.now()}-${index}`,
+          name: typeof item.name === 'string' ? item.name.slice(0, OPTION_NAME_MAX_LENGTH) : '',
+          criteria: {
+            importance: clampScore(Number(item.criteria?.importance ?? 3)),
+            urgency: clampScore(Number(item.criteria?.urgency ?? 3)),
+            longTerm: clampScore(Number(item.criteria?.longTerm ?? 3)),
+            enjoyment: clampScore(Number(item.criteria?.enjoyment ?? 3)),
+          },
+        }))
+        .slice(0, 4);
+    } catch {
+      return [];
+    }
+  });
   const [results, setResults] = useState<Result[] | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(options));
+  }, [options]);
 
   const addOption = () => {
     if (options.length < 4) {
@@ -55,15 +95,16 @@ function App() {
   };
 
   const removeOption = (id: string) => {
-    if (options.length > 2) {
+    if (options.length > 0) {
       setOptions(options.filter((opt) => opt.id !== id));
       setResults(null);
     }
   };
 
   const updateOptionName = (id: string, name: string) => {
+    const limitedName = name.slice(0, OPTION_NAME_MAX_LENGTH);
     setOptions(
-      options.map((opt) => (opt.id === id ? { ...opt, name } : opt))
+      options.map((opt) => (opt.id === id ? { ...opt, name: limitedName } : opt))
     );
     setResults(null);
   };
@@ -88,6 +129,13 @@ function App() {
 
     if (validOptions.length < 2) {
       alert('Please enter at least 2 options with names');
+      return;
+    }
+
+    const normalizedNames = validOptions.map((opt) => opt.name.trim().toLowerCase());
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      setResults(null);
+      alert('Two or more of your options have the same option name');
       return;
     }
 
@@ -118,73 +166,199 @@ function App() {
   };
 
   const maxScore = results ? Math.max(...results.map((r) => r.score)) : 0;
+  const topRecommended = results
+    ? results.filter((result) => Math.abs(result.score - maxScore) < 1e-9)
+    : [];
+  const hasTopScoreTie = topRecommended.length > 1;
+  const optionCount = options.length;
+  const namedOptionCount = options.filter((opt) => opt.name.trim() !== '').length;
+  const canAddOption = options.length < 4;
+  const canRunDecision = namedOptionCount >= 2;
+  const showHero = options.length === 0;
+
+  const getOptionPlacementClass = (count: number, index: number) => {
+    if (count === 1) {
+      return 'option-card-pos-1';
+    }
+
+    if (count === 2) {
+      return index === 0 ? 'option-card-pos-2-left' : 'option-card-pos-2-right';
+    }
+
+    if (count === 3) {
+      if (index === 0) return 'option-card-pos-3-left';
+      if (index === 1) return 'option-card-pos-3-center';
+      return 'option-card-pos-3-right';
+    }
+
+    return `option-card-pos-4-${index + 1}`;
+  };
+
+  const getRankBadge = (index: number) => {
+    if (index === 0) {
+      return {
+        label: '#1',
+        className: 'rank-badge rank-badge-gold',
+        icon: <Trophy className="w-3.5 h-3.5" aria-hidden="true" />,
+      };
+    }
+
+    if (index === 1) {
+      return {
+        label: '#2',
+        className: 'rank-badge rank-badge-silver',
+        icon: <Medal className="w-3.5 h-3.5" aria-hidden="true" />,
+      };
+    }
+
+    if (index === 2) {
+      return {
+        label: '#3',
+        className: 'rank-badge rank-badge-bronze',
+        icon: <Award className="w-3.5 h-3.5" aria-hidden="true" />,
+      };
+    }
+
+    return {
+      label: `#${index + 1}`,
+      className: 'rank-badge rank-badge-neutral',
+      icon: null,
+    };
+  };
+
+  const resetToHome = () => {
+    setOptions([]);
+    setResults(null);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(OPTIONS_STORAGE_KEY);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col">
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-12 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl mb-4 border border-white/10 hover:border-white/20 transition-colors">
-            <Target className="w-7 h-7 text-white/90" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Decision Helper
-          </h1>
-          <p className="text-base text-white/60 max-w-2xl mx-auto leading-relaxed">
-            Make logical decisions by evaluating your options based on importance,
-            urgency, long-term value, and enjoyment
-          </p>
-        </div>
+    <div className="app-shell">
+      <div className="ambient-orb orb-blue" />
+      <div className="ambient-orb orb-violet" />
+      <div className="ambient-orb orb-cyan" />
 
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 mb-8 hover:border-white/20 transition-colors">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-white">
-              Your Options
-            </h2>
-            {options.length < 4 && (
-              <button
-                onClick={addOption}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white/90 rounded-lg transition-all duration-300 font-medium border border-white/10 hover:border-white/20"
-              >
+      <div className="app-layout">
+        <header className="top-header fade-up" aria-label="Primary navigation">
+          <a
+            href="/"
+            className="brand-link"
+            aria-label="Go to Decision Maker home"
+            onClick={(e) => {
+              e.preventDefault();
+              resetToHome();
+            }}
+          >
+          <div className="header-left-cluster">
+            <div className="brand-mark-tile" aria-hidden="true">
+              <Scale className="brand-mark-icon" />
+            </div>
+            <div className="brand-text-stack">
+              <p className="brand-title">Decision Maker</p>
+            </div>
+          </div>
+          </a>
+
+          <div className="header-right-cluster">
+            <p className="header-metadata">{optionCount} / 4 options</p>
+            <button
+              onClick={addOption}
+              className="btn-secondary"
+              type="button"
+              disabled={!canAddOption}
+            >
+              <Plus className="w-4 h-4" />
+              Add Option
+            </button>
+          </div>
+        </header>
+
+        {showHero && (
+          <section className="hero-panel fade-up delay-1" aria-label="Empty state">
+            <div className="hero-atmosphere hero-atmosphere-a" aria-hidden="true" />
+            <div className="hero-atmosphere hero-atmosphere-b" aria-hidden="true" />
+
+            <span className="hero-chip">Live Decision Dashboard</span>
+            <h1 className="hero-headline">
+              <span className="hero-headline-base">Every option counts.</span>
+              <span className="hero-headline-accent">Rank them all.</span>
+            </h1>
+            <p className="hero-subtitle hero-centered-copy">
+              Add your most important options and let Decision Maker score
+              them instantly using weighted criteria according to the formula below.
+            </p>
+            <p className="hero-formula hero-centered-copy">
+              Score = (Importance x 2) + (Long-term x 2) + (Urgency x 1.5) + (Enjoyment x 1)
+            </p>
+            <button
+              onClick={addOption}
+              className="btn-primary hero-cta"
+              type="button"
+              disabled={!canAddOption}
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Option
+            </button>
+            <p className="hero-empty-title">No options added yet</p>
+            <p className="hero-empty-copy">
+              Add your first option to start evaluating decisions.
+            </p>
+          </section>
+        )}
+
+        <main className={`main-region ${showHero ? '' : 'main-region-centered'}`} aria-label="Decision workspace">
+          <section className="glass-panel fade-up delay-2" aria-label="Options input">
+          <div className="section-header section-header-centered">
+            <div>
+              <p className="section-kicker">Evaluate your options below</p>
+              <h2 className="section-title">Quick Compare Board</h2>
+            </div>
+            {!showHero && (
+              <button onClick={addOption} className="btn-secondary" type="button" disabled={!canAddOption}>
                 <Plus className="w-4 h-4" />
                 Add Option
               </button>
             )}
           </div>
 
-          <div className="space-y-8">
+          <div className={`option-stack option-stack-count-${options.length}`}>
             {options.map((option, index) => (
-              <div key={option.id} className="border-b border-white/10 pb-8 last:border-b-0 last:pb-0">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="flex-shrink-0 w-8 h-8 bg-white/10 text-white/90 rounded-lg flex items-center justify-center font-semibold border border-white/10">
-                    {index + 1}
-                  </span>
+              <article
+                key={option.id}
+                className={`option-card ${getOptionPlacementClass(options.length, index)}`}
+              >
+                <div className="option-top-row">
+                  <span className="option-index">{index + 1}</span>
                   <input
                     type="text"
                     value={option.name}
                     onChange={(e) => updateOptionName(option.id, e.target.value)}
                     placeholder={`Option ${index + 1} name`}
-                    className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent text-white placeholder-white/40 transition-all duration-300 hover:border-white/20"
+                    className="option-input"
+                    maxLength={OPTION_NAME_MAX_LENGTH}
                   />
-                  {options.length > 2 && (
+                  {options.length > 0 && (
                     <button
                       onClick={() => removeOption(option.id)}
-                      className="flex-shrink-0 p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-300 border border-transparent hover:border-red-400/20"
+                      className="remove-btn"
+                      type="button"
+                      aria-label={`Remove option ${index + 1}`}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pl-11">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <TrendingUp className="w-4 h-4 text-emerald-400/80" />
-                      <label className="text-sm font-medium text-white/80">
+                <div className="criteria-grid">
+                  <div className="criterion-block">
+                    <div className="criterion-meta">
+                      <span className="criterion-title">
+                        <Star className="w-4 h-4 criterion-icon importance" />
                         Importance
-                      </label>
-                      <span className="ml-auto text-sm font-semibold text-white/90">
-                        {option.criteria.importance}
                       </span>
+                      <span className="criterion-score">{option.criteria.importance}</span>
                     </div>
                     <input
                       type="range"
@@ -192,51 +366,19 @@ function App() {
                       max="5"
                       value={option.criteria.importance}
                       onChange={(e) =>
-                        updateCriteria(
-                          option.id,
-                          'importance',
-                          parseInt(e.target.value)
-                        )
+                        updateCriteria(option.id, 'importance', parseInt(e.target.value, 10))
                       }
-                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer slider-emerald hover:bg-white/20 transition-colors"
+                      className="neon-slider slider-importance"
                     />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="w-4 h-4 text-orange-400/80" />
-                      <label className="text-sm font-medium text-white/80">
-                        Urgency
-                      </label>
-                      <span className="ml-auto text-sm font-semibold text-white/90">
-                        {option.criteria.urgency}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="5"
-                      value={option.criteria.urgency}
-                      onChange={(e) =>
-                        updateCriteria(
-                          option.id,
-                          'urgency',
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer slider-orange hover:bg-white/20 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Target className="w-4 h-4 text-blue-400/80" />
-                      <label className="text-sm font-medium text-white/80">
+                  <div className="criterion-block">
+                    <div className="criterion-meta">
+                      <span className="criterion-title">
+                        <TrendingUp className="w-4 h-4 criterion-icon long-term" />
                         Long-term Value
-                      </label>
-                      <span className="ml-auto text-sm font-semibold text-white/90">
-                        {option.criteria.longTerm}
                       </span>
+                      <span className="criterion-score">{option.criteria.longTerm}</span>
                     </div>
                     <input
                       type="range"
@@ -244,25 +386,39 @@ function App() {
                       max="5"
                       value={option.criteria.longTerm}
                       onChange={(e) =>
-                        updateCriteria(
-                          option.id,
-                          'longTerm',
-                          parseInt(e.target.value)
-                        )
+                        updateCriteria(option.id, 'longTerm', parseInt(e.target.value, 10))
                       }
-                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer slider-blue hover:bg-white/20 transition-colors"
+                      className="neon-slider slider-long-term"
                     />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Smile className="w-4 h-4 text-amber-400/80" />
-                      <label className="text-sm font-medium text-white/80">
-                        Enjoyment
-                      </label>
-                      <span className="ml-auto text-sm font-semibold text-white/90">
-                        {option.criteria.enjoyment}
+                  <div className="criterion-block">
+                    <div className="criterion-meta">
+                      <span className="criterion-title">
+                        <Clock className="w-4 h-4 criterion-icon urgency" />
+                        Urgency
                       </span>
+                      <span className="criterion-score">{option.criteria.urgency}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={option.criteria.urgency}
+                      onChange={(e) =>
+                        updateCriteria(option.id, 'urgency', parseInt(e.target.value, 10))
+                      }
+                      className="neon-slider slider-urgency"
+                    />
+                  </div>
+
+                  <div className="criterion-block">
+                    <div className="criterion-meta">
+                      <span className="criterion-title">
+                        <Smile className="w-4 h-4 criterion-icon enjoyment" />
+                        Enjoyment
+                      </span>
+                      <span className="criterion-score">{option.criteria.enjoyment}</span>
                     </div>
                     <input
                       type="range"
@@ -270,115 +426,112 @@ function App() {
                       max="5"
                       value={option.criteria.enjoyment}
                       onChange={(e) =>
-                        updateCriteria(
-                          option.id,
-                          'enjoyment',
-                          parseInt(e.target.value)
-                        )
+                        updateCriteria(option.id, 'enjoyment', parseInt(e.target.value, 10))
                       }
-                      className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer slider-amber hover:bg-white/20 transition-colors"
+                      className="neon-slider slider-enjoyment"
                     />
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
 
-          <button
-            onClick={calculateScores}
-            className="w-full mt-8 px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-300 border border-white/20 hover:border-white/40 shadow-lg shadow-black/20 backdrop-blur-sm"
-          >
-            Evaluate Decision
-          </button>
-        </div>
+          {optionCount === 0 ? (
+            <button onClick={addOption} className="btn-primary" type="button" disabled={!canAddOption}>
+              <Plus className="w-4 h-4" />
+              Add Option
+            </button>
+          ) : (
+            <button onClick={calculateScores} className="btn-primary" type="button" disabled={!canRunDecision}>
+              Run Decision Maker
+            </button>
+          )}
+          </section>
 
-        {results && (
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:border-white/20 transition-colors">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Recommendation
-            </h2>
-            <p className="text-white/60 mb-8 text-sm">
-              Based on your evaluation criteria, here are your options ranked by score
-            </p>
+          {results && (
+            <section className="glass-panel fade-up delay-2" aria-label="Results">
+              <div className="section-header section-header-tight section-header-output">
+                <div>
+                  <p className="section-kicker">Decision Maker Output</p>
+                  <h2 className="section-title">Recommended Option Order</h2>
+                </div>
+              </div>
 
-            <div className="space-y-4">
-              {results.map((result, index) => (
-                <div
-                  key={result.id}
-                  className={`p-6 rounded-xl border transition-all duration-300 ${
-                    index === 0
-                      ? 'bg-white/10 border-white/30 shadow-lg shadow-white/10'
-                      : 'bg-white/5 border-white/10 hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        {index === 0 && (
-                          <span className="px-3 py-1 bg-white/20 text-white text-xs font-semibold rounded-full border border-white/30">
-                            RECOMMENDED
+              <div className={`results-stack results-stack-count-${results.length}`}>
+                {results.map((result, index) => {
+                  const rankBadge = getRankBadge(index);
+
+                  return (
+                  <article
+                    key={result.id}
+                    className={`result-card ${getOptionPlacementClass(results.length, index)} ${(hasTopScoreTie ? topRecommended.some((top) => top.id === result.id) : index === 0) ? 'result-card-winner' : ''}`}
+                  >
+                    <div className="result-header">
+                      <div>
+                        <div className="result-title-row">
+                          <span className={rankBadge.className}>
+                            {rankBadge.icon}
+                            <span>{rankBadge.label}</span>
                           </span>
-                        )}
-                        <h3 className="text-lg font-semibold text-white">
-                          {result.name}
-                        </h3>
+                          {((hasTopScoreTie ? topRecommended.some((top) => top.id === result.id) : index === 0)) && (
+                            <span className="winner-badge">Recommended</span>
+                          )}
+                          <h3 className="result-name">{result.name}</h3>
+                        </div>
+                      </div>
+                      <div className="score-wrap">
+                        <div className="score-value">{result.score.toFixed(1)}</div>
+                        <span className="score-label">total score</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-3xl font-bold text-white">
-                        {result.score.toFixed(1)}
-                      </div>
-                      <div className="text-xs text-white/50">total score</div>
-                    </div>
-                  </div>
 
-                  <div className="mb-4">
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="progress-track">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          index === 0 ? 'bg-white/60' : 'bg-white/30'
-                        }`}
+                        className="progress-fill"
                         style={{ width: `${(result.score / maxScore) * 100}%` }}
                       />
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                      <span className="text-white/60">Importance (×2)</span>
-                      <span className="font-semibold text-white/90">
-                        {result.breakdown.importance.toFixed(1)}
-                      </span>
+                    <div className="breakdown-grid">
+                      <div className="breakdown-item">
+                        <span>Importance (x2)</span>
+                        <strong>{result.breakdown.importance.toFixed(1)}</strong>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Long-term (x2)</span>
+                        <strong>{result.breakdown.longTerm.toFixed(1)}</strong>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Urgency (x1.5)</span>
+                        <strong>{result.breakdown.urgency.toFixed(1)}</strong>
+                      </div>
+                      <div className="breakdown-item">
+                        <span>Enjoyment (x1)</span>
+                        <strong>{result.breakdown.enjoyment.toFixed(1)}</strong>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                      <span className="text-white/60">Urgency (×1.5)</span>
-                      <span className="font-semibold text-white/90">
-                        {result.breakdown.urgency.toFixed(1)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                      <span className="text-white/60">Long-term (×2)</span>
-                      <span className="font-semibold text-white/90">
-                        {result.breakdown.longTerm.toFixed(1)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                      <span className="text-white/60">Enjoyment (×1)</span>
-                      <span className="font-semibold text-white/90">
-                        {result.breakdown.enjoyment.toFixed(1)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  </article>
+                  );
+                })}
+              </div>
+
+              {hasTopScoreTie && (
+                <p className="tie-message">
+                  These options are equally recommended: {topRecommended.map((option) => option.name).join(', ')}.
+                </p>
+              )}
+            </section>
+          )}
+        </main>
       </div>
 
-      <footer className="text-center py-8 text-white/50 text-sm border-t border-white/10">
-        <p className="text-base">Built with ♥ by Jagrat Ahuja</p>
-        <p className="text-base">© 2026 All rights reserved.</p>
+      <footer className="app-footer">
+        <p className="footer-zone footer-left">v2.0</p>
+        <div className="footer-zone footer-center">
+          <p>Built with <span className="footer-heart">♥</span> by Jagrat Ahuja</p>
+          <p>© 2026 All rights reserved.</p>
+        </div>
+        <p className="footer-zone footer-right" aria-hidden="true">&nbsp;</p>
       </footer>
     </div>
   );
