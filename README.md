@@ -6,7 +6,7 @@ A fast decision-scoring web app that lets users compare options and rank them in
 
 ## 🌐 Live Demo
 
-Coming soon.
+[[https://decision-jagratahuja.vercel.app/](https://decision-jagratahuja.vercel.app/)]
 
 ---
 
