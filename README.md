@@ -108,7 +108,7 @@ decision-maker
 ## 🚀 Installation (Run Locally)
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/jagratahuja/decision-maker.git
 
 npm install
 
