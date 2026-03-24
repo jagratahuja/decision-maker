@@ -63,6 +63,7 @@ Frontend:
 
 * React
 * TypeScript
+* Javascript
 * Vite
 * HTML5
 * CSS3
